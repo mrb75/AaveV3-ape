@@ -76,7 +76,8 @@ aave:
     sepolia:
       pool_address_provider: "0x012bAC54348C0E635dCAc9D5FB99f06F24136C9A"
       weth_token: "0xC558DBdd856501FCd9aaF1E62eae57A9F0629a3c"
-      dai_eth_price_feed: "0x14866185B1962B63C3Ea9E03Bc1da838bab34C19"
-      dai_token: "0x3e622317f8C93f7328350cF0B56d9eD4C620C5d6"
+      dai_usd_price_feed: "0x14866185B1962B63C3Ea9E03Bc1da838bab34C19"
+      eth_usd_price_feed: "0x694AA1769357215DE4FAC081bf1f309aDC325306"
+      dai_token: "0xFF34B3d4Aee8ddCd6F9AFFFB6Fe49bD371b8a357"
 
       

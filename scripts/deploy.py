@@ -3,31 +3,50 @@ from .helpers import get_account
 import click
 from ape.cli import ConnectedProviderCommand
 from web3 import Web3
+from ape.exceptions import ContractLogicError
 
 
 def main():
     account = get_account()
     pool = get_pool()
-    weth = get_weth()
     [ecosystem_name, network_name, provider_name] = get_net_info()
-    erc20_address = project.config.aave[ecosystem_name][network_name]["weth_token"]
     print(f"pool address : {pool}")
-    print(f"weth address : {weth}")
+    if network_name in ["mainnet-fork"]:
+        weth = get_weth()
+        print(f"weth address : {weth}")
+    erc20_address = project.config.aave[ecosystem_name][network_name]["weth_token"]
 
     print("supply process started\n")
     supply_amount = project.config.values.borrow_amount
-    approve_token(supply_amount,
-                  pool.address, erc20_address, account.address)
-    supply_tx = pool.supply(erc20_address, supply_amount,
-                            account.address, 0, sender=account)
+    approve_tx = approve_token(supply_amount,
+                               pool.address, erc20_address, account)
+    try:
+        supply_tx = pool.supply(erc20_address, supply_amount,
+                                account.address, 0, sender=account)
+    except ContractLogicError as err:
+        print(f"The transaction failed: {err}")
     print("supply process ended\n")
     get_borrowable_data(pool, account)
     print("borrow process started\n")
-    borrow(supply_amount, pool, account)
+    if network_name not in ["sepolia"]:
+        price_feed_address = project.config.aave[ecosystem_name][network_name]["dai_eth_price_feed"]
+        dai_eth_price = get_eth_price(supply_amount, price_feed_address)
+    else:
+        price_feed_address_dai = project.config.aave[ecosystem_name][network_name]["dai_usd_price_feed"]
+        price_feed_address_eth = project.config.aave[ecosystem_name][network_name]["eth_usd_price_feed"]
+        dai_usd_price = get_eth_price(supply_amount, price_feed_address_dai)
+        eth_usd_price = get_eth_price(supply_amount, price_feed_address_eth)
+        dai_eth_price = dai_usd_price/eth_usd_price
+
+    [totalCollateralBase, totalDebtBase,
+        availableBorrowsBase] = get_borrowable_data(pool, account)
+    dai_amount = (1/dai_eth_price)*availableBorrowsBase*0.95
+
+    borrow(dai_amount, pool, account)
     print("borrow process ended\n")
     get_borrowable_data(pool, account)
     print("repay process started\n")
-    repay(pool, account)
+    repay(dai_amount, pool, account)
     print("repay process ended\n")
     get_borrowable_data(pool, account)
 
@@ -56,6 +75,7 @@ def approve_token(amount, spender, address, account):
     token = dependency_project.IERC20.at(address)
     tx = token.approve(spender, amount, sender=account)
     print("approved.")
+    return tx
 
 
 def get_eth_price(amount, price_feed_address):
@@ -95,26 +115,19 @@ def get_price_oracle():
 
 def borrow(amount, pool, account):
     [ecosystem_name, network_name, provider_name] = get_net_info()
-    price_feed_address = project.config.aave[ecosystem_name][network_name]["dai_eth_price_feed"]
-    dai_eth_price = get_eth_price(amount, price_feed_address)
-    [totalCollateralBase, totalDebtBase,
-        availableBorrowsBase] = get_borrowable_data(pool, account)
-    dai_amount = (1/dai_eth_price)*availableBorrowsBase*0.95
-    borrow_tx = pool.borrow(
-        project.config.aave[ecosystem_name][network_name]["dai_token"], Web3.to_wei(dai_amount, "ether"), 2, 0, account.address, sender=account)
+    try:
+        borrow_tx = pool.borrow(
+            project.config.aave[ecosystem_name][network_name]["dai_token"], Web3.to_wei(amount, "ether"), 2, 0, account.address, sender=account)
+    except ContractLogicError as err:
+        print(f"The transaction failed: {err}")
 
 
-def repay(pool, account):
+def repay(amount, pool, account):
     [ecosystem_name, network_name, provider_name] = get_net_info()
-    eth_amount = get_borrowable_data(
-        pool, account)[1]
-    price_feed_address = project.config.aave[ecosystem_name][network_name]["dai_eth_price_feed"]
-    dai_eth_price = get_eth_price(eth_amount, price_feed_address)
-    dai_amount = (1/dai_eth_price)*eth_amount
     dai_token = project.config.aave[ecosystem_name][network_name]["dai_token"]
-    approve_token(Web3.to_wei(dai_amount, "ether"),
+    approve_token(Web3.to_wei(amount, "ether"),
                   pool.address, dai_token, account)
-    pool.repay(dai_token, Web3.to_wei(dai_amount, "ether"),
+    pool.repay(dai_token, Web3.to_wei(amount, "ether"),
                2, account, sender=account)
 
 
