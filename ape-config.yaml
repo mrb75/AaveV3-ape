@@ -1,0 +1,82 @@
+name: AaveV3-ape
+
+
+dependencies:
+  - name: openzeppelin
+    github: OpenZeppelin/openzeppelin-contracts
+    version: 4.8.0
+  - name: chainlink
+    github: smartcontractkit/chainlink
+    version: 2.18.0
+    config_override:
+      contracts_folder: contracts/src/v0.8/shared/interfaces/
+  - name: aave
+    github: aave/aave-v3-core
+    version: 1.19.4
+  
+values:
+  borrow_amount: "0.1 ether"
+compile:
+  include_dependencies: true
+
+
+foundry:
+  host: auto
+  request_timeout: 20  # Defaults to 30
+  fork_request_timeout: 600  # Defaults to 300
+  fork:
+    ethereum:
+      mainnet:
+        upstream_provider: alchemy
+
+
+
+ethereum:
+  mainnet:
+    # Ethereum mainnet in Ape uses EIP-1559 by default,
+    # but we can change that here. Note: most plugins
+    # use type 0 by default already, so you don't need
+    # to change this if using an `ape-<l2>` plugin.
+    default_transaction_type: 0
+
+    # The amount of time to wait for a transaction to be
+    # accepted after sending it before raising an error.
+    # Most networks use 120 seconds (2 minutes).
+    transaction_acceptance_timeout: 60
+
+    # The amount of times to retry fetching a receipt. This is useful
+    # because decentralized systems may show the transaction accepted
+    # on some nodes but not on others, and potentially RPC requests
+    # won't return a receipt immediately after sending its transaction.
+    # This config accounts for such delay. The default is `20`.
+    max_receipt_retries: 10
+
+    # Set a gas limit here, or use the default of "auto" which
+    # estimates gas. Note: local networks tend to use "max" here
+    # by default.
+    gas_limit: auto
+
+    # Base-fee multipliers are useful for times when the base fee changes
+    # before a transaction is sent but after the base fee was derived,
+    # thus causing rejection. A multiplier reduces the chance of
+    # rejection. The default for live networks is `1.4` times the base fee.
+    base_fee_multiplier: 1.2
+
+    # The block time helps Ape make decisions about
+    # polling chain data.
+    block_time: 10
+
+aave:
+  ethereum:
+    mainnet-fork:
+      pool_address_provider: "0x2f39d218133AFaB8F2B819B1066c7E434Ad94E9e"
+      weth_token: "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"
+      dai_eth_price_feed: "0x773616E4d11A78F511299002da57A0a94577F1f4"
+      dai_token: "0x6B175474E89094C44Da98b954EedeAC495271d0F"
+    sepolia:
+      pool_address_provider: "0x012bAC54348C0E635dCAc9D5FB99f06F24136C9A"
+      weth_token: "0xC558DBdd856501FCd9aaF1E62eae57A9F0629a3c"
+      dai_eth_price_feed: "0x14866185B1962B63C3Ea9E03Bc1da838bab34C19"
+      dai_token: "0x3e622317f8C93f7328350cF0B56d9eD4C620C5d6"
+
+      
